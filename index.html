@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Microservices Architecture Scene</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-event-set-component@5.0.0/dist/aframe-event-set-component.min.js"></script>
+    <script src="https://unpkg.com/aframe-ocean-component/dist/aframe-ocean-component.min.js"></script>
+    <script>
+      
+AFRAME.registerComponent('start-button', {
+  init: function() {
+    this.el.addEventListener('click', () => {
+      console.log('Start button clicked'); // Add this for debugging
+      var vis = document.querySelector('[microservices-visualization]').components['microservices-visualization'];
+      if (vis) {
+        vis.start();
+      } else {
+        console.error('Microservices visualization component not found');
+      }
+    });
+  }
+});
+      
+     AFRAME.registerComponent('pause-button', {
+  init: function () {
+    this.togglePause = this.togglePause.bind(this);
+    this.el.addEventListener('click', this.togglePause);
+    this.textEl = this.el.querySelector('#pause-text');
+  },
+  togglePause: function () {
+    var vis = document.querySelector('[microservices-visualization]').components['microservices-visualization'];
+    if (vis.isPaused) {
+      vis.resume();
+      this.textEl.setAttribute('value', 'Pause');
+    } else {
+      vis.pause();
+      this.textEl.setAttribute('value', 'Resume');
+    }
+  }
+});
+
+      AFRAME.registerComponent('light-beam', {
+  schema: {
+    from: {type: 'selector'},
+    to: {type: 'selector'},
+    duration: {type: 'number', default: 1000},
+    visible: {type: 'boolean', default: false}
+  },
+
+  init: function() {
+    this.el.setAttribute('geometry', {primitive: 'cylinder', radius: 0.02});
+    this.el.setAttribute('material', {color: '#00ffff', opacity: 0.5});
+  },
+
+  update: function() {
+    if (this.data.from && this.data.to) {
+      this.animate();
+    }
+    this.el.setAttribute('visible', this.data.visible);
+  },
+
+  animate: function() {
+    var fromPos = this.data.from.object3D.position;
+    var toPos = this.data.to.object3D.position;
+    var distance = fromPos.distanceTo(toPos);
+
+    this.el.setAttribute('height', distance);
+    this.el.object3D.position.copy(fromPos);
+    this.el.object3D.lookAt(toPos);
+    this.el.object3D.rotateX(Math.PI / 2);
+
+    this.el.setAttribute('animation', {
+      property: 'scale',
+      from: {x: 0, y: distance, z: 0},
+      to: {x: 1, y: 1, z: 1},
+      dur: this.data.duration,
+      easing: 'easeInOutQuad'
+    });
+  }
+});
+      
+      AFRAME.registerComponent('info-bubble', {
+  init: function () {
+    this.updateInfo = this.updateInfo.bind(this);
+    this.el.sceneEl.addEventListener('beamComplete', this.updateInfo);
+  },
+
+  updateInfo: function (evt) {
+    var fromName = evt.detail.from.getAttribute('name');
+    var toName = evt.detail.to.getAttribute('name');
+    var currentTime = new Date().toLocaleTimeString();
+    
+    this.el.setAttribute('text', {
+      value: `Last beam: ${fromName} to ${toName}\nTime: ${currentTime}`
+    });
+  }
+});
+
+      AFRAME.registerComponent('collider-check', {
+  dependencies: ['raycaster'],
+
+  init: function () {
+    this.el.addEventListener('raycaster-intersection', function () {
+      console.log('Player hit something!');
+    });
+  }
+});
+
+      AFRAME.registerComponent('open-article', {
+        init: function () {
+          this.el.addEventListener('click', function () {
+            window.open('https://dev.to/charity_everett/introduction-to-microservices-architecture-with-docker-and-kubernetes-3el8', '_blank');
+          });
+        }
+      });
+
+      AFRAME.registerComponent('service-interaction', {
+        init: function () {
+          this.el.addEventListener('click', function () {
+            console.log('Service clicked:', this.id);
+          });
+        }
+      });
+
+    AFRAME.registerComponent('underwater-float', {
+  schema: {
+    amplitude: {type: 'number', default: 0.05},
+    period: {type: 'number', default: 2}
+  },
+
+  init: function () {
+    this.initialPosition = new THREE.Vector3();
+    this.initialPosition.copy(this.el.object3D.position);
+  },
+
+  tick: function (time, timeDelta) {
+    var el = this.el;
+    var amplitude = this.data.amplitude;
+    var period = this.data.period;
+
+    // Calculate vertical displacement
+    var displacement = Math.sin(time * 0.001 * Math.PI * 2 / period) * amplitude;
+
+    // Apply displacement to the initial position
+    el.object3D.position.y = this.initialPosition.y + displacement;
+
+    // Add slight horizontal movement
+    el.object3D.position.x = this.initialPosition.x + Math.sin(time * 0.0005) * amplitude * 0.5;
+    el.object3D.position.z = this.initialPosition.z + Math.cos(time * 0.0007) * amplitude * 0.5;
+
+    // Add slight rotation
+    el.object3D.rotation.x = Math.sin(time * 0.0003) * 0.02;
+    el.object3D.rotation.z = Math.cos(time * 0.0004) * 0.02;
+  }
+});
+
+AFRAME.registerComponent('tilt-and-float', {
+  schema: {
+    tiltX: {type: 'number', default: 30},
+    tiltY: {type: 'number', default: 0},
+    tiltZ: {type: 'number', default: 0},
+    floatAmplitude: {type: 'number', default: 0.03},
+    floatPeriod: {type: 'number', default: 2.8}
+  },
+
+  init: function () {
+    this.initialPosition = new THREE.Vector3();
+    this.initialPosition.copy(this.el.object3D.position);
+    this.el.object3D.rotation.set(
+      THREE.MathUtils.degToRad(this.data.tiltX),
+      THREE.MathUtils.degToRad(this.data.tiltY),
+      THREE.MathUtils.degToRad(this.data.tiltZ)
+    );
+  },
+
+  tick: function (time, timeDelta) {
+    var el = this.el;
+    var amplitude = this.data.floatAmplitude;
+    var period = this.data.floatPeriod;
+
+    // Calculate vertical displacement
+    var displacement = Math.sin(time * 0.001 * Math.PI * 2 / period) * amplitude;
+
+    // Apply displacement to the initial position
+    el.object3D.position.y = this.initialPosition.y + displacement;
+
+    // Add slight horizontal movement
+    el.object3D.position.x = this.initialPosition.x + Math.sin(time * 0.0005) * amplitude * 0.5;
+    el.object3D.position.z = this.initialPosition.z + Math.cos(time * 0.0007) * amplitude * 0.5;
+  }
+});
+    AFRAME.registerComponent('microservices-visualization', {
+ init: function () {
+  this.services = {
+    client: document.querySelector('#client'),
+    apiGateway: document.querySelector('#apiGateway'),
+    authService: document.querySelector('#authService'),
+    userService: document.querySelector('#userService'),
+    productService: document.querySelector('#productService'),
+    orderService: document.querySelector('#orderService'),
+    paymentService: document.querySelector('#paymentService')
+  };
+
+  // Log found services for debugging
+  Object.entries(this.services).forEach(([key, value]) => {
+    console.log(`Service ${key}: ${value ? 'Found' : 'Not found'}`);
+  });
+
+    this.dataFlow = [
+      { from: 'client', to: 'apiGateway', data: { action: "place_order", user_id: "12345", product_id: "67890", quantity: 2 } },
+      { from: 'apiGateway', to: 'authService', data: { action: "authenticate", user_id: "12345", auth_token: "abcdef" } },
+      { from: 'authService', to: 'apiGateway', data: { user_id: "12345", authenticated: true } },
+      { from: 'apiGateway', to: 'userService', data: { action: "get_user_info", user_id: "12345" } },
+      { from: 'userService', to: 'apiGateway', data: { user_id: "12345", address: "123 Main St", preferred_payment: "credit_card" } },
+      { from: 'apiGateway', to: 'productService', data: { action: "check_product_availability", product_id: "67890", quantity: 2 } },
+      { from: 'productService', to: 'apiGateway', data: { product_id: "67890", available: true, stock: 10 } },
+      { from: 'apiGateway', to: 'orderService', data: { action: "create_order", user_id: "12345", product_id: "67890", quantity: 2, address: "123 Main St", payment: "credit_card" } },
+      { from: 'orderService', to: 'apiGateway', data: { order_id: "A123", status: "pending_payment" } },
+      { from: 'orderService', to: 'paymentService', data: { action: "process_payment", order_id: "A123", amount: 100.00, payment_method: "credit_card" } },
+      { from: 'paymentService', to: 'orderService', data: { payment_status: "success", transaction_id: "TXN789" } },
+      { from: 'orderService', to: 'apiGateway', data: { order_id: "A123", status: "completed" } },
+      { from: 'apiGateway', to: 'client', data: { order_id: "A123", status: "completed", message: "Your order has been successfully placed!" } }
+    ];
+
+    this.currentStep = 0;
+    this.isPaused = false;
+
+    this.el.sceneEl.addEventListener('start-data-flow', this.startDataFlow.bind(this));
+  },
+
+start: function () {
+  console.log('Start function called'); // Add this for debugging
+  this.isPaused = false;
+  this.currentStep = 0;
+  this.animateNextStep();
+},
+
+  pause: function () {
+    this.isPaused = true;
+  },
+
+  resume: function () {
+    this.isPaused = false;
+    this.animateNextStep();
+  },
+
+animateNextStep: function () {
+  console.log('Animating step:', this.currentStep); // Add this for debugging
+  if (this.isPaused || this.currentStep >= this.dataFlow.length) return;
+
+  var step = this.dataFlow[this.currentStep];
+  var fromEl = this.services[step.from];
+  var toEl = this.services[step.to];
+
+  if (!fromEl || !toEl) {
+    console.error('Service not found:', !fromEl ? step.from : step.to);
+    this.currentStep++;
+    this.animateNextStep();
+    return;
+  }
+
+  var beam = document.querySelector('#lightBeam');
+  if (!beam) {
+    console.error('Light beam element not found');
+    return;
+  }
+
+  beam.setAttribute('visible', true);
+  
+  // Update beam position and orientation
+  beam.object3D.position.copy(fromEl.object3D.position);
+  beam.object3D.lookAt(toEl.object3D.position);
+  
+  // Set beam length
+  var distance = fromEl.object3D.position.distanceTo(toEl.object3D.position);
+  beam.setAttribute('height', distance);
+
+  // Animate the beam
+  beam.setAttribute('animation', {
+    property: 'scale',
+    from: '0 1 0',
+    to: '1 1 1',
+    dur: 2000,
+    easing: 'easeInOutQuad'
+  });
+
+  // Update info panel
+  this.updateInfoPanel(step.data);
+
+  // Schedule next step
+  setTimeout(() => {
+    beam.setAttribute('visible', false);
+    this.currentStep++;
+    this.animateNextStep();
+  }, 2000);
+},
+});
+    
+    </script>
+  </head>
+  <body>
+    <a-scene>
+      <a-assets>
+        <img id="sky" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Underwaterskybox?v=1729884418777">
+        <img id="article-preview" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/MicroservicesPage.png?v=1729025756305">
+        <img id="shippingcontainertexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/shippingcontainertexture.png?v=1729534098043">      
+        <img id="graycontainertexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Untitled%20design%20(12).png?v=1729796945452">
+        <img id="clientcontainertexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/ClientTexture.png?v=1729796944877">
+        <img id="apigatewaytexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/APIGatewayTexture.png?v=1729799379718">
+        <img id="userservicetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Userservicetexture.png?v=1729799819708">
+        <img id="productservicetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Productservicetexture.png?v=1729799939825">
+        <img id="orderservicetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Orderservicetexture.png?v=1729799935005">
+        <img id="authenticationservicetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Authenticationservicetexture.png?v=1729799920834">
+        <img id="paymentservicetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Paymentservicetexture.png?v=1729800540387">
+        <img id="externalpaymentprovidertexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Externalpaymentprovidertexture.png?v=1729806679552">
+        <img id="productdatabasetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Productdatabase.png?v=1729915340922">
+        <img id="orderdatabasetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Orderdatabase.png?v=1729915344220">
+        <img id="userdatabasetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Userdatabase.png?v=1729915337573">
+        <img id="databasesidetexture" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Databasetexture.png?v=1729805082190">
+       <!-- <a-asset-item id="anchormodel" crossorigin="anonymous" src="https://cdn.glitch.global/5cfc02c2-e08f-4e29-9383-05c3fa57335f/Anchormodel.glb?v=1729882245433"></a-asset-item> -->
+        <a-asset-item id="font" src="https://cdn.aframe.io/fonts/mozillavr.fnt"></a-asset-item>
+     
+        
+      </a-assets>
+
+      <!-- Sky -->
+      <a-sky src="#sky"></a-sky>
+
+    <!-- Ocean -->
+      <a-ocean width="50" depth="50" density="10" opacity="0.5"></a-ocean>
+      
+ <!-- Article Screen -->
+<a-entity id="article-screen-container" position="0 1.6 3" rotation="0 180 0" underwater-float="amplitude: 0.02; period: 4.0">
+  <a-entity>
+    <a-plane width="8" height="6" color="#008bcf"> <!-- Primary color -->
+      <a-plane position="0 0 0.01" width="7.8" height="5.8" src="#article-preview" open-article></a-plane>
+      <a-text value="Click to read full article" align="center" position="0 -2.9 0.1" width="8" color="#FFFFFF"></a-text>
+    </a-plane>
+  </a-entity>
+</a-entity>
+
+      
+
+<!-- Microservices Architecture Viz -->
+<a-entity microservices-visualization underwater-float="amplitude: 0.03; period: 3.2" position="0 1.726 -3" rotation="8 4 .15" scale=".75 .75 .75">
+
+<!-- Microservices Architecture Title -->
+<a-text value="Microservices          Architecture" position="0.011 3.988 -2.08" rotation="2.23 -0.85 3.6" align="center" color="#00CED1" scale="3 3 3" font="https://cdn.aframe.io/fonts/mozillavr.fnt"></a-text>
+
+<!-- Client -->
+<a-box position="0.001 2.554 0.193" depth="1.2" height="0.4" width="0.6"  material="src: #clientcontainertexture"  rotation="15 30 15" service-interaction="name: client" underwater-float="amplitude: 0.05; period: 2.3"></a-box> 
+<!-- <a-text value="Client" position="0 2.3 0.5" align="center" rotation="-15 6 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- API Gateway -->
+<a-box position="0.001 1.478 0.204" depth="1.2" height="0.4" width="0.6" material="src: #apigatewaytexture" rotation="15 30 15" service-interaction="name: api-gateway" underwater-float="amplitude: 0.04; period: 2.7"></a-box> 
+<!-- <a-text value="API Gateway" position="0 1.631 0.524" align="center" rotation="-15 14.27 0" scale="0.5 0.5 0.5"></a-text> -->
+ 
+<!-- Auth Service -->
+<a-box  position="-2.368 0.620 0.25" depth="1.2" height="0.4" width="0.6" material="src: #authenticationservicetexture" rotation="15 30 15" service-interaction="name: auth-service" underwater-float="amplitude: 0.045; period: 2.6"></a-box> 
+<!-- <a-text value="Auth Service" position="-2 1.3 0.5" align="center" rotation="-15 30 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- User Service -->
+<a-box  position="-1 0.649 0" depth="1.2" height="0.4" width="0.6"  material="src: #userservicetexture" rotation="15 30 15" service-interaction="name: user-service" underwater-float="amplitude: 0.035; period: 2.4"></a-box> 
+<!-- <a-text value="User Service" position="-1 1.3 0.5" align="center" rotation="-15 30 0" scale="0.5 0.5 0.5"></a-text> -->
+  
+<!-- Product Service -->
+<a-box position="1 0.649 0" depth="1.2" height="0.4" width="0.6"  material="src: #productservicetexture" rotation="15 30 15" service-interaction="name: product-service" underwater-float="amplitude: 0.04; period: 2.5"></a-box> 
+<!-- <a-text value="Product Service" position="1 1.3 0.5" align="center" rotation="-15 30 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- Order Service -->
+<a-box position="2.515 0.6453 -0.964" depth="1.2" height="0.4" width="0.6" material="src: #orderservicetexture" rotation="15 30 15" service-interaction="name: order-service" underwater-float="amplitude: 0.05; period: 2.3"></a-box> <!-- Accent color -->
+<!-- <a-text value="Order Service" position="1.933 1.373 -0.275" align="center" rotation="-15 12.53 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- Payment Service -->
+<a-box id="paymentService" position="2 -1 0" depth="1.2" height="0.4" width="0.6" material="src: #paymentservicetexture" rotation="15 30 15" service-interaction="name: payment-service" underwater-float="amplitude: 0.055; period: 2.7"></a-box>          
+<!-- <a-text value="Payment Service" position="2.001 -0.374 0.454" align="center" rotation="-15 10.99 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- External Payment Provider -->
+<a-box position="2 -2 0" depth="1.2" height="0.4" width="0.6" material="src: #externalpaymentprovidertexture" rotation="15 30 15" service-interaction="name: external-payment-provider" underwater-float="amplitude: 0.06; period: 2.2"></a-box> <!-- Accent color -->
+<!-- <a-text value="External Payment Provider" position="2 -1.552 0.479" align="center" rotation="-15 22.81 0" scale="0.5 0.5 0.5"></a-text> -->
+   
+<!-- Databases -->
+<!-- User Database -->
+<a-cylinder position="-4 -1 0" radius="0.5" height="1.5" material="src: #userdatabasetexture" rotation="3.160 117.471 17.510" service-interaction="name: user-database" tilt-and-float="tiltX: 3.160; tiltY: 117.471; tiltZ: 17.510; floatAmplitude: 0.03; floatPeriod: 2.8"></a-cylinder><!-- <a-text value="User Database" position="-3.735 0.078 0.479" align="center" rotation="-15 25 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- Product Database -->
+<a-cylinder position="-2 -1 0" radius="0.5" height="1.5" width="0.5" material="src: #productdatabasetexture" rotation="2.84 107.471 17.59" service-interaction="name: product-database" tilt-and-float="tiltX: 2.84; tiltY: 107.471; tiltZ: 17.59; floatAmplitude: 0.035; floatPeriod: 2.6"></a-cylinder>
+<!-- <a-text value="Product Database" position="1.397 0.373 2.089" align="center" rotation="-15 20.460 0" scale="0.5 0.5 0.5"></a-text> -->
+
+<!-- Order Database -->
+<a-cylinder position="0 -1 0" radius="0.5" height="1.5" width="0.5" material="src: #orderdatabasetexture" rotation="-0.34 95.6 18.31" service-interaction="name: order-database" tilt-and-float="tiltX: -0.34; tiltY: 95.6; tiltZ: 18.31; floatAmplitude: 0.025; floatPeriod: 3.0"></a-cylinder><!-- <a-text value="Order Database" position="-0.027 0.154 0.778" align="center" rotation="-15 0.120 0" scale="0.5 0.5 0.5"></a-text> -->
+</a-entity>
+
+<!-- Anchor -->
+<!-- <a-entity gltf-model="#anchormodel" position="0 0 0" scale="0.5 0.5 0.5"></a-entity> -->
+      
+<!-- Light Beam -->
+<a-cylinder id="lightBeam" position="0 0.058 -2.572" radius="0.05" color="#00FFFF" opacity="0.5" visible="false" light-beam></a-cylinder>
+      
+<!-- Bubble Info Panel -->
+<a-sphere id="info-panel-bubble" raycaster="objects: .collidable; showLine:true;" class="clickable" play-pause-toggle underwater-float="amplitude: 0.04; period: 2.5" position="0 -0.042 -2.572" radius="1" color="#87CEEB" opacity="0.7" material="side: double">
+  <a-entity 
+  id="info-panel-text" text="value: Click to Start; width: 1.5; color: #000000; align: center; baseline: center; wrapCount: 20;" material="side: double" position="0 0.403 0.634" rotation="0 0 0" scale="1 1.1 1" animation="property: scale; to: 1.05 1.05 1.05; dir: alternate; dur: 2000; loop: true">
+  </a-entity>
+</a-sphere>
+      
+  <!-- Camera Rig and Controls -->
+<a-camera position="0 1.6 0"> 
+    <a-cursor></a-cursor>
+   <a-entity laser-controls="hand: left"></a-entity>
+  <a-entity laser-controls="hand: right"></a-entity>
+    </a-camera>
+      </a-scene>
+    
+  </body>
+</html>
